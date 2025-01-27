@@ -11,99 +11,14 @@ import SDWebImageSwiftUI
 struct ArtistDetailsView: View {
     
     let artistModel: ArtistModel
-    
-    @State var selectedAlbum: AlbumModel?
-    
     @Environment(\.dismiss) var dismiss
-    @Environment(\.colorScheme) var colorScheme
     
     var body: some View {
         ScrollView{
             VStack(alignment: .leading, spacing: 20) {
-                ZStack(alignment: .bottom) {
-                    // background
-                    WebImage(url: URL(string: artistModel.artistThumbnail))
-                        .resizable()
-                        .aspectRatio(contentMode: .fill)
-                        .frame(height: 400)
-                        .clipShape(Rectangle())
-                        .overlay(
-                            LinearGradient(
-                                gradient: Gradient(colors: [Color.black.opacity(0), colorScheme == .light ? .white : .black]),
-                                startPoint: .center,
-                                endPoint: .bottom
-                            )
-                        )
-                    // foreground
-                    HStack(spacing: 20){
-                        VStack(alignment: .leading, spacing: 10){
-                            HStack(spacing: 10) {
-                                Text(artistModel.artistName)
-                                    .font(.title)
-                                    .fontWeight(.bold)
-                                Image(systemName: "checkmark.seal.fill")
-                                    .foregroundStyle(.purple)
-                                    .font(.title2)
-                            }
-                            Text(artistModel.artistDescription)
-                                .foregroundStyle(.gray)
-                        }
-                        Spacer()
-                        VStack{
-                            Text("# \(artistModel.artistRank)")
-                                .font(.title2)
-                            Text("in the world")
-                                .font(.caption2)
-                        }
-                        .foregroundStyle(.white)
-                        .padding(9)
-                        .frame(width: 80, height: 80)
-                        .background(Color.purple)
-                        .clipShape(RoundedRectangle(cornerRadius: 15))
-                    }
-                    .padding(.horizontal)
-                }
-                
-                VStack(alignment: .leading, spacing: 17) {
-                    Text("New Release")
-                        .font(.title2)
-                        .fontWeight(.semibold)
-                        .padding(.horizontal)
-                    ForEach(artistModel.albums) { album in
-                        AlbumCardView(album: album)
-                    }
-                }
-                
-                VStack(alignment: .leading, spacing: 17) {
-                    HStack {
-                        Text("Top Songs")
-                            .font(.title2)
-                            .fontWeight(.semibold)
-                        Spacer()
-                        Text("View All")
-                            .foregroundStyle(.secondary)
-                    }
-                    .padding(.horizontal)
-                    ForEach(artistModel.albums.indices, id: \.self) { index in
-                        HStack(spacing: 15) {
-                            Text("\(index+1)")
-                                .font(.headline)
-                                .padding(.leading, 20)
-                            Button {
-                                selectedAlbum = artistModel.albums[index]
-                            } label: {
-                                SongCardView(album: artistModel.albums[index])
-                            }
-                            .tint(.primary)
-                        }
-                    }
-//                    .sheet(item: $selectedAlbum) { album in
-//                        
-//                    }
-                    .fullScreenCover(item: $selectedAlbum) { album in
-                        PlayerView(album: album)
-                    }
-                }
+                ArtistDetailsSection(artistModel: artistModel)
+                NewReleaseSection(artistModel: artistModel)
+                TopSongsSection(artistModel: artistModel)
             }
         }
         .ignoresSafeArea(edges: .top)
@@ -127,11 +42,117 @@ struct ArtistDetailsView: View {
                 .foregroundStyle(.purple)
             }
         }
+        .tint(.purple)
     }
 }
 
 
+struct ArtistDetailsSection: View {
+    
+    let artistModel: ArtistModel
+    @Environment(\.colorScheme) var colorScheme
+    
+    var body: some View {
+        ZStack(alignment: .bottom) {
+            // background
+            WebImage(url: URL(string: artistModel.artistThumbnail))
+                .resizable()
+                .aspectRatio(contentMode: .fill)
+                .frame(height: 400)
+                .clipShape(Rectangle())
+                .overlay(
+                    LinearGradient(
+                        gradient: Gradient(colors: [Color.black.opacity(0), colorScheme == .light ? .white : .black]),
+                        startPoint: .center,
+                        endPoint: .bottom
+                    )
+                )
+            // foreground
+            HStack(spacing: 20){
+                VStack(alignment: .leading, spacing: 10){
+                    HStack(spacing: 10) {
+                        Text(artistModel.artistName)
+                            .font(.title)
+                            .fontWeight(.bold)
+                        Image(systemName: "checkmark.seal.fill")
+                            .foregroundStyle(.purple)
+                            .font(.title2)
+                    }
+                    Text(artistModel.artistDescription)
+                        .foregroundStyle(.gray)
+                }
+                Spacer()
+                VStack{
+                    Text("# \(artistModel.artistRank)")
+                        .font(.title2)
+                    Text("in the world")
+                        .font(.caption2)
+                }
+                .foregroundStyle(.white)
+                .padding(9)
+                .frame(width: 80, height: 80)
+                .background(Color.purple)
+                .clipShape(RoundedRectangle(cornerRadius: 15))
+            }
+            .padding(.horizontal)
+        }
+    }
+}
 
+
+struct NewReleaseSection: View {
+    
+    let artistModel: ArtistModel
+    
+    var body: some View {
+        VStack(alignment: .leading, spacing: 17) {
+            Text("New Release")
+                .font(.title2)
+                .fontWeight(.semibold)
+                .padding(.horizontal)
+            ForEach(artistModel.albums) { album in
+                AlbumCardView(album: album)
+            }
+        }
+    }
+}
+
+
+struct TopSongsSection: View {
+    
+    let artistModel: ArtistModel
+    @State var selectedAlbum: AlbumModel?
+    
+    var body: some View {
+        VStack(alignment: .leading, spacing: 17) {
+            HStack {
+                Text("Top Songs")
+                    .font(.title2)
+                    .fontWeight(.semibold)
+                Spacer()
+                Text("View All")
+                    .foregroundStyle(.secondary)
+            }
+            .padding(.horizontal)
+            ForEach(artistModel.albums.indices, id: \.self) { index in
+                HStack(spacing: 15) {
+                    Text("\(index+1)")
+                        .font(.headline)
+                        .padding(.leading, 20)
+                    Button {
+                        selectedAlbum = artistModel.albums[index]
+                    } label: {
+                        SongCardView(album: artistModel.albums[index])
+                    }
+                    .tint(.primary)
+                }
+            }
+            .fullScreenCover(item: $selectedAlbum) { album in
+                PlayerView(album: album)
+            }
+        }
+    }
+}
 
 
 #Preview {
