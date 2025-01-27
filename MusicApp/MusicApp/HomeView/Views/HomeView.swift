@@ -127,6 +127,9 @@ struct HomeView: View {
         }
     }
     
+    
+    @State var selectedAlbum: AlbumModel?
+    
     var recentlyPlayedSection: some View {
         VStack(alignment: .leading, spacing: 18) {
             Text("Recently Played")
@@ -136,22 +139,30 @@ struct HomeView: View {
                 HStack(spacing: 15){
                     if let content = homeViewModel.allArtistData?.artists{
                         ForEach(content) { artist in
-                            VStack(alignment: .leading){
-                                ZStack {
-                                    WebImage(url: URL(string: artist.artistThumbnail))
-                                        .resizable()
-                                        .aspectRatio(contentMode: .fill)
-                                        .frame(width: 120, height: 120)
-                                        .clipShape(RoundedRectangle(cornerRadius: 20))
-                                    Image(systemName: "play.circle.fill")
-                                        .foregroundStyle(.white)
-                                        .font(.title2)
+                            Button {
+                                selectedAlbum = artist.albums[0]
+                            } label: {
+                                VStack(alignment: .leading){
+                                    ZStack {
+                                        WebImage(url: URL(string: artist.artistThumbnail))
+                                            .resizable()
+                                            .aspectRatio(contentMode: .fill)
+                                            .frame(width: 120, height: 120)
+                                            .clipShape(RoundedRectangle(cornerRadius: 20))
+                                        Image(systemName: "play.circle.fill")
+                                            .foregroundStyle(.white)
+                                            .font(.title2)
+                                    }
+                                    Text(artist.albums[0].songs[0].prefix(12))
+                                    Text(artist.artistName)
+                                        .foregroundStyle(.secondary)
+                                        .font(.caption)
                                 }
-                                Text(artist.albums[0].songs[0].prefix(12))
-                                Text(artist.artistName)
-                                    .foregroundStyle(.secondary)
-                                    .font(.caption)
                             }
+                            .tint(.primary)
+                        }
+                        .fullScreenCover(item: $selectedAlbum) { album in
+                            PlayerView(album: album)
                         }
                     }
                 }
