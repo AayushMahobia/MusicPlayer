@@ -203,9 +203,6 @@ struct PlayerControls: View {
             .font(.title2)
             .padding(.top, 10)
         }
-        .onAppear() {
-            playerManager.loadSampleSong()
-        }
         .fontWeight(.semibold)
     }
 }
