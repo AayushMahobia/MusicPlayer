@@ -29,9 +29,9 @@ class PlayerManager: ObservableObject {
     var audioPlayer: AVAudioPlayer?
     private var displayLink: CADisplayLink?
     
-//    private init() {
-//         loadSampleSong()
-//    }
+    private init() {
+         loadSampleSong()
+    }
 
     func formatTime(_ time: Double) -> String {
         let minutes = Int(time) / 60
