@@ -12,20 +12,18 @@ struct PlayerView: View {
     
     let album: AlbumModel
     
-    @StateObject var playerViewModel: PlayerViewModel = PlayerViewModel()
-    
     var body: some View {
         ZStack{
             Color.black
                 .ignoresSafeArea(edges: .all)
             ScrollView{
                 VStack(spacing: 40){
-                    navBar()
+                    NavBar()
                     VStack(alignment: .leading, spacing: 20) {
-                        songDetails(album: album, playerViewModel: playerViewModel)
-                        playerControls(playerViewModel: playerViewModel)
+                        SongDetails(album: album)
+                        PlayerControls()
                     }
-                    lyricsSection(playerViewModel: playerViewModel)
+                    LyricsSection()
                 }
             }
             .foregroundStyle(.white)
@@ -36,7 +34,7 @@ struct PlayerView: View {
 }
 
 
-struct navBar: View {
+struct NavBar: View {
     
     @Environment(\.dismiss) var dismiss
     
@@ -62,10 +60,10 @@ struct navBar: View {
 }
 
 
-struct songDetails: View {
+struct SongDetails: View {
     
     let album: AlbumModel
-    @ObservedObject var playerViewModel: PlayerViewModel
+    @ObservedObject var playerManager: PlayerManager = PlayerManager.shared
     
     var body: some View {
         VStack(spacing: 25){
@@ -83,10 +81,10 @@ struct songDetails: View {
                 }
                 Spacer()
                 Button {
-                    playerViewModel.isLiked.toggle()
+                    playerManager.isLiked.toggle()
                 } label: {
-                    Image(systemName: playerViewModel.isLiked ? "heart.fill" : "heart")
-                        .foregroundStyle(playerViewModel.isLiked ? .red : .white)
+                    Image(systemName: playerManager.isLiked ? "heart.fill" : "heart")
+                        .foregroundStyle(playerManager.isLiked ? .red : .white)
                         .font(.title)
                 }
             }
@@ -95,56 +93,225 @@ struct songDetails: View {
 }
 
 
-struct playerControls: View {
+struct PlayerControls: View {
     
-    @ObservedObject var playerViewModel: PlayerViewModel
+    @ObservedObject var playerManager: PlayerManager = PlayerManager.shared
     
     var body: some View {
         VStack(spacing: 20){
+            
+            // Seek Bar
             VStack(spacing: 8) {
-                Slider(value: $playerViewModel.currentTime, in: 0...playerViewModel.duration, step: 1) {
-                    Text(playerViewModel.formatTime(playerViewModel.currentTime))
-                        .font(.caption)
-                        .foregroundColor(.white)
+                GeometryReader { geometry in
+                    Slider(
+                        value: Binding(
+                            get: { playerManager.currentTime },
+                            set: { newTime in
+                                playerManager.seek(to: newTime)
+                            }
+                        ),
+                        in: 0...playerManager.duration,
+                        step: 1
+                    )
+                    .tint(.purple)
+                    .onTapGesture { location in
+                        let sliderWidth = geometry.size.width
+                        let tapLocation = location.x
+                        let newTime = Double(tapLocation / sliderWidth) * playerManager.duration
+                        playerManager.currentTime = newTime
+                        playerManager.seek(to: newTime)
+                    }
                 }
-                .tint(.purple)
+                .frame(height: 40) // Adjust the frame size for GeometryReader
                 HStack{
-                    Text(playerViewModel.formatTime(playerViewModel.currentTime))
+                    Text(playerManager.formatTime(playerManager.currentTime))
                     Spacer()
-                    Text("-\(playerViewModel.formatTime(playerViewModel.duration - playerViewModel.currentTime))")
+                    Text("-\(playerManager.formatTime(playerManager.duration - playerManager.currentTime))")
                 }
                 .font(.caption)
                 .foregroundStyle(.white)
             }
+            
+            // 1st Row of buttons
             HStack{
-                Image(systemName: "shuffle")
-                Spacer()
                 Image(systemName: "backward.end.fill")
                 Spacer()
-                Button {
-                    playerViewModel.isPlaying.toggle()
-                } label: {
-                    Image(systemName: playerViewModel.isPlaying ? "play.fill" : "pause.fill")
-                        .background(
-                            Circle()
-                                .frame(width: 45, height: 45)
-                                .foregroundStyle(.purple)
-                        )
+                HStack {
+                    Spacer()
+                    
+                    Button {
+                        playerManager.backward10Sec()
+                    } label: {
+                        Image(systemName: "10.arrow.trianglehead.counterclockwise")
+                    }
+                    
+                    Spacer()
+                    
+                    Button {
+                        playerManager.togglePlayPause()
+                    } label: {
+                        Image(systemName: playerManager.isPlaying ? "pause.fill" : "play.fill")
+                            .background(
+                                Circle()
+                                    .frame(width: 55, height: 55)
+                                    .foregroundStyle(.purple)
+                            )
+                    }
+                    
+                    Spacer()
+                    
+                    Button {
+                        playerManager.forward10Sec()
+                    } label: {
+                        Image(systemName: "10.arrow.trianglehead.clockwise")
+                    }
+                    
+                    Spacer()
                 }
+                .font(.title)
                 Spacer()
                 Image(systemName: "forward.end.fill")
-                Spacer()
-                Image(systemName: "repeat")
             }
-            .font(.title3)
+            .font(.title2)
+            .padding(.horizontal, 30)
+            
+            // 2nd Row of buttons
+            HStack{
+                Button {
+                    playerManager.showSpeedSelector.toggle()
+                } label: {
+                    HStack {
+                        Image(systemName: "barometer")
+                        Text("\(playerManager.speed)x")
+                    }
+                }
+                .sheet(isPresented: $playerManager.showSpeedSelector) {
+                    SpeedSelector()
+                        .presentationDetents([.fraction(0.6)])
+                }
+                Spacer()
+                Button {
+                    playerManager.showSleepTimer.toggle()
+                } label: {
+                    Image(systemName: playerManager.sleepTimer == 0 ? "moon" : "moon.fill")
+                }
+                .sheet(isPresented: $playerManager.showSleepTimer) {
+                    SleepTimerSelector()
+                        .presentationDetents([.fraction(0.6)])
+                }
+            }
+            .font(.title2)
+            .padding(.top, 10)
+        }
+        .onAppear() {
+            playerManager.loadSampleSong()
+        }
+        .fontWeight(.semibold)
+    }
+}
+
+struct SpeedSelector: View {
+    
+    @Environment(\.dismiss) var dismiss
+    @ObservedObject var playerManager: PlayerManager = PlayerManager.shared
+    
+    var body: some View {
+        ZStack(alignment: .top){
+            Color(UIColor.darkGray)
+                .ignoresSafeArea(edges: .bottom)
+            
+            VStack(spacing: 40){
+                Image(systemName: "minus")
+                    .font(.largeTitle)
+                    .fontWeight(.heavy)
+                VStack(spacing: 20) {
+                    Image(systemName: "barometer")
+                        .font(.largeTitle)
+                    Text("Set Playback Speed")
+                        .font(.title2)
+                        .fontWeight(.semibold)
+                }
+                VStack(spacing: 30) {
+                    ForEach(playerManager.speedOptions, id: \.self) { speed in
+                        Button {
+                            playerManager.changeSpeed(to: speed)
+                            dismiss()
+                        } label: {
+                            HStack {
+                                Text("\(speed == "1" ? "\(speed)x - Normal" : "\(speed)x")")
+                                Spacer()
+                                Image(systemName: speed == playerManager.speed ? "record.circle" : "circle")
+                            }
+                            .font(.title3)
+                        }
+                    }
+                }
+            }
+            .foregroundStyle(.white)
+            .padding()
         }
     }
 }
 
 
-struct lyricsSection: View {
+struct SleepTimerSelector: View {
     
-    @ObservedObject var playerViewModel: PlayerViewModel
+    @Environment(\.dismiss) var dismiss
+    @ObservedObject var playerManager: PlayerManager = PlayerManager.shared
+    
+    var body: some View {
+        ZStack(alignment: .top){
+            Color(UIColor.darkGray)
+                .ignoresSafeArea(edges: .bottom)
+            
+            VStack(spacing: 40){
+                Image(systemName: "minus")
+                    .font(.largeTitle)
+                    .fontWeight(.heavy)
+                VStack(spacing: 20) {
+                    Image(systemName: "moon")
+                        .font(.largeTitle)
+                    Text("Set Sleep Timer")
+                        .font(.title2)
+                        .fontWeight(.semibold)
+                }
+                VStack(spacing: 30) {
+                    ForEach(playerManager.sleepTimerOptions, id: \.self) { timer in
+                        Button {
+                            playerManager.sleepTimer = timer
+                            dismiss()
+                        } label: {
+                            HStack {
+                                Text("\(timer == 0 ? "Off" : "\(timer) minutes")")
+                                Spacer()
+                                Image(systemName: timer == playerManager.sleepTimer ? "record.circle" : "circle")
+                            }
+                            .font(.title3)
+                        }
+                    }
+                    Button {
+                        playerManager.sleepTimer = Int(playerManager.duration - playerManager.currentTime)
+                        dismiss()
+                    } label: {
+                        HStack {
+                            Text("End of the song")
+                            Spacer()
+                            Image(systemName: (playerManager.sleepTimer == Int(playerManager.duration - playerManager.currentTime)) ? "record.circle" : "circle")
+                        }
+                        .font(.title3)
+                    }
+                }
+            }
+            .foregroundStyle(.white)
+            .padding()
+        }
+    }
+}
+
+
+struct LyricsSection: View {
+    
+    @ObservedObject var playerManager: PlayerManager = PlayerManager.shared
     
     var body: some View {
         ZStack(alignment: .top){
@@ -158,7 +325,7 @@ struct lyricsSection: View {
                 HStack(spacing: 15) {
                     Image(systemName: "square.and.arrow.up")
                     Button {
-                        playerViewModel.showFullLyrics.toggle()
+                        playerManager.showFullLyrics.toggle()
                     } label: {
                         Image(systemName: "arrow.down.left.and.arrow.up.right")
                     }
@@ -167,16 +334,15 @@ struct lyricsSection: View {
             }
             .padding()
             .foregroundStyle(.white)
-            .fullScreenCover(isPresented: $playerViewModel.showFullLyrics) {
-                fullLyrics(playerViewModel: playerViewModel)
+            .fullScreenCover(isPresented: $playerManager.showFullLyrics) {
+                FullLyrics()
             }
         }
     }
 }
 
-struct fullLyrics: View {
+struct FullLyrics: View {
     
-    @ObservedObject var playerViewModel: PlayerViewModel
     @Environment(\.dismiss) var dismiss
     
     var body: some View {

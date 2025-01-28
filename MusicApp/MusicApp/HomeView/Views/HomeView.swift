@@ -16,7 +16,7 @@ struct HomeView: View {
         NavigationStack{
             VStack(
                 alignment: homeViewModel.isLoading ? .center : .leading,
-                spacing: 35
+                spacing: 30
             ){
                 navBar
                 if homeViewModel.isLoading{
@@ -25,7 +25,7 @@ struct HomeView: View {
                     Spacer()
                 }else{
                     ScrollView{
-                        VStack(alignment: .leading, spacing: 25){
+                        VStack(alignment: .leading, spacing: 20){
                             topArtistSection
                             newAlbumSection
                             recentlyPlayedSection
